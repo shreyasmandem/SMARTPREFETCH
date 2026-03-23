@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartPrefetch — Dual Simulator</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy:   #050d1a;
+    --panel:  #0a1628;
+    --card:   #0d1b32;
+    --border: #182e4a;
+    --blue:   #1565c0;
+    --cyan:   #00b4d8;
+    --teal:   #0d9488;
+    --gold:   #ffb703;
+    --red:    #ef4444;
+    --green:  #22c55e;
+    --white:  #e8f1ff;
+    --muted:  #5a7a9a;
+    --font-mono: 'JetBrains Mono', monospace;
+    --font-ui:   'Syne', sans-serif;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--navy);color:var(--white);font-family:var(--font-mono);min-height:100vh}
+
+  /* HEADER */
+  header{
+    background:var(--panel);border-bottom:2px solid var(--border);
+    padding:14px 28px;display:flex;align-items:center;justify-content:space-between;
+    position:sticky;top:0;z-index:200;
+  }
+  .logo{font-family:var(--font-ui);font-size:18px;font-weight:800;letter-spacing:-0.5px}
+  .logo .sp{color:var(--cyan)}
+  .logo .vs{color:var(--muted);font-size:12px;margin-left:10px;font-weight:400}
+  .hdr-right{display:flex;align-items:center;gap:16px}
+  .access-ticker{font-size:11px;color:var(--gold);font-weight:700}
+  .scenario-badge{
+    padding:4px 12px;border-radius:20px;font-size:10px;font-weight:700;
+    letter-spacing:1px;text-transform:uppercase;
+    background:rgba(0,180,216,0.15);border:1px solid rgba(0,180,216,0.35);color:var(--cyan)
+  }
+
+  /* CONTROLS BAR */
+  .controls-bar{
+    background:var(--panel);border-bottom:1px solid var(--border);
+    padding:12px 28px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+  }
+  .ctrl-group{display:flex;align-items:center;gap:8px}
+  .ctrl-label{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+  .ctrl-val{font-size:12px;font-weight:700;color:var(--gold);min-width:32px}
+  input[type=range]{
+    width:100px;height:3px;cursor:pointer;accent-color:var(--cyan);
+    background:var(--border);border:none;border-radius:2px;padding:0;
+  }
+  .scenario-tabs{display:flex;gap:6px;margin-left:auto}
+  .stab{
+    padding:6px 14px;border-radius:6px;font-size:11px;font-weight:700;
+    font-family:var(--font-ui);cursor:pointer;transition:all .2s;
+    background:var(--card);border:1px solid var(--border);color:var(--muted);
+  }
+  .stab.active{background:rgba(0,180,216,0.15);border-color:var(--cyan);color:var(--cyan)}
+  .stab:hover{border-color:var(--muted);color:var(--white)}
+
+  .btn-run{
+    padding:8px 22px;background:var(--blue);color:#fff;border:none;border-radius:7px;
+    font-family:var(--font-ui);font-size:13px;font-weight:700;letter-spacing:.5px;
+    cursor:pointer;transition:all .2s;white-space:nowrap;
+  }
+  .btn-run:hover{background:var(--cyan);color:var(--navy)}
+  .btn-step{
+    padding:8px 16px;background:transparent;color:var(--cyan);
+    border:1px solid var(--cyan);border-radius:7px;
+    font-family:var(--font-ui);font-size:12px;font-weight:700;
+    cursor:pointer;transition:all .2s;white-space:nowrap;
+  }
+  .btn-step:hover{background:var(--cyan);color:var(--navy)}
+  .speed-grp{display:flex;gap:4px}
+  .spd{
+    padding:5px 10px;background:var(--card);border:1px solid var(--border);
+    color:var(--muted);border-radius:5px;font-family:var(--font-mono);font-size:10px;
+    cursor:pointer;transition:all .15s;
+  }
+  .spd.active,.spd:hover{border-color:var(--gold);color:var(--gold)}
+
+  /* MAIN */
+  .main{padding:18px 28px;display:flex;flex-direction:column;gap:16px}
+
+  /* STREAM */
+  .stream-row{
+    background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;
+  }
+  .stream-hdr{
+    background:var(--panel);border-bottom:1px solid var(--border);
+    padding:9px 16px;display:flex;align-items:center;justify-content:space-between;
+  }
+  .stream-title{font-family:var(--font-ui);font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--cyan)}
+  .stream-inner{
+    display:flex;gap:5px;overflow-x:auto;padding:10px 16px;align-items:center;
+    scrollbar-width:thin;scrollbar-color:var(--border) transparent;min-height:48px;
+  }
+  .saddr{
+    flex-shrink:0;padding:3px 7px;border-radius:4px;font-size:10px;font-weight:700;
+    background:var(--panel);border:1px solid var(--border);transition:all .25s;opacity:.35;
+  }
+  .saddr.current{border-color:var(--gold);color:var(--gold);opacity:1;transform:scale(1.2);background:rgba(255,183,3,.1)}
+  .saddr.past-hit{background:rgba(13,148,136,.25);border-color:var(--teal);opacity:.7;color:var(--teal)}
+  .saddr.past-miss{background:rgba(239,68,68,.2);border-color:var(--red);opacity:.7;color:var(--red)}
+  .saddr.future{opacity:.18}
+
+  /* DUAL PANE */
+  .dual-pane{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+
+  /* PANE CARD */
+  .pane{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;display:flex;flex-direction:column}
+  .pane.conv-pane{border-top:3px solid var(--red)}
+  .pane.smart-pane{border-top:3px solid var(--green)}
+  .pane-hdr{
+    background:var(--panel);border-bottom:1px solid var(--border);
+    padding:10px 16px;display:flex;align-items:center;justify-content:space-between;
+  }
+  .pane-title{font-family:var(--font-ui);font-size:13px;font-weight:800;letter-spacing:.5px}
+  .conv-pane .pane-title{color:var(--red)}
+  .smart-pane .pane-title{color:var(--green)}
+  .status-pill{
+    padding:3px 10px;border-radius:12px;font-size:10px;font-weight:700;
+    letter-spacing:.5px;transition:all .3s;
+  }
+  .pill-active{background:rgba(34,197,94,.2);color:var(--green);border:1px solid rgba(34,197,94,.4)}
+  .pill-suppressed{background:rgba(239,68,68,.2);color:var(--red);border:1px solid rgba(239,68,68,.4);animation:blink .8s infinite}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.5}}
+
+  /* METRICS */
+  .metrics-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:12px}
+  .met{
+    background:var(--panel);border:1px solid var(--border);border-radius:7px;
+    padding:10px 10px 8px;text-align:center;
+  }
+  .met-val{font-family:var(--font-ui);font-size:22px;font-weight:800;line-height:1;margin-bottom:3px}
+  .met-lbl{font-size:8px;letter-spacing:1.2px;text-transform:uppercase;color:var(--muted)}
+
+  /* CACHE GRID */
+  .cache-section{padding:0 12px 12px}
+  .cache-sec-title{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);padding:8px 0 6px;display:flex;justify-content:space-between}
+  .cache-grid{
+    display:grid;gap:3px;
+  }
+  .cc{
+    height:14px;border-radius:2px;background:var(--border);
+    transition:background .25s, transform .15s;
+    position:relative;cursor:default;
+  }
+  .cc.c-empty{background:var(--border)}
+  .cc.c-demand{background:var(--teal);transform:scaleY(1.3)}
+  .cc.c-prefetched{background:var(--gold);opacity:.75}
+  .cc.c-useful{background:var(--green)}
+  .cc.c-wasted{background:#334155;opacity:.6}
+  .cc.c-evicted{background:var(--red);animation:evict .4s ease}
+  @keyframes evict{0%{transform:scaleX(1.2)}100%{transform:scaleX(1)}}
+
+  /* LEGEND */
+  .cache-legend{display:flex;gap:12px;flex-wrap:wrap;padding:0 12px 10px}
+  .leg{display:flex;align-items:center;gap:5px;font-size:9px;color:var(--muted)}
+  .legdot{width:9px;height:9px;border-radius:2px;flex-shrink:0}
+
+  /* USEFULNESS BAR (smart only) */
+  .useful-bar-wrap{padding:6px 12px 10px;display:flex;align-items:center;gap:10px}
+  .ubl{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);white-space:nowrap}
+  .ubtrack{flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden}
+  .ubfill{height:100%;border-radius:3px;transition:width .5s ease,background .5s ease}
+  .ubpct{font-size:11px;font-weight:700;min-width:38px;text-align:right}
+
+  /* SUPPRESSION EVENTS */
+  .supp-events{padding:0 12px 10px;display:flex;gap:6px;flex-wrap:wrap;min-height:28px}
+  .supp-pill{
+    padding:2px 8px;border-radius:10px;font-size:9px;font-weight:700;
+    background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:var(--red);
+  }
+
+  /* SHARED CHART */
+  .chart-card{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+  .chart-hdr{background:var(--panel);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;justify-content:space-between}
+  .chart-title{font-family:var(--font-ui);font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--cyan)}
+  .chart-legend{display:flex;gap:16px}
+  .cl{display:flex;align-items:center;gap:6px;font-size:10px}
+  .cldot{width:14px;height:3px;border-radius:2px}
+  canvas{display:block;width:100%!important}
+
+  /* LOG ROW */
+  .log-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .log-card{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+  .log-inner{height:160px;overflow-y:auto;padding:10px 14px;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+  .ll{display:flex;gap:7px;font-size:10px;line-height:1.65;align-items:flex-start}
+  .lt{color:var(--muted);min-width:28px;flex-shrink:0}
+  .ltag{padding:1px 5px;border-radius:3px;font-size:8px;font-weight:700;letter-spacing:.3px;flex-shrink:0;margin-top:2px}
+  .tag-hit{background:rgba(13,148,136,.3);color:var(--teal)}
+  .tag-miss{background:rgba(239,68,68,.25);color:var(--red)}
+  .tag-pf{background:rgba(255,183,3,.2);color:var(--gold)}
+  .tag-supp{background:rgba(239,68,68,.15);color:var(--red)}
+  .tag-resume{background:rgba(34,197,94,.15);color:var(--green)}
+  .tag-info{background:rgba(0,180,216,.15);color:var(--cyan)}
+  .lmsg{color:var(--white);opacity:.82}
+
+  /* RESULT BANNER */
+  .result-banner{
+    display:none;padding:14px 20px;border-radius:8px;text-align:center;
+    font-family:var(--font-ui);font-weight:700;font-size:14px;letter-spacing:.3px;
+  }
+  .result-banner.win{background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3);color:var(--green)}
+  .result-banner.neutral{background:rgba(0,180,216,.1);border:1px solid rgba(0,180,216,.25);color:var(--cyan)}
+
+  /* PHASE MARKER */
+  .phase-tag{
+    padding:2px 8px;border-radius:4px;font-size:9px;font-weight:700;letter-spacing:.5px;
+    text-transform:uppercase;background:rgba(255,183,3,.15);border:1px solid rgba(255,183,3,.3);color:var(--gold)
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Smart<span class="sp">Prefetch</span><span class="vs">made by Shreyas and Adithya</span></div>
+  <div class="hdr-right">
+    <span class="access-ticker" id="tickerEl">Access: 0 / 0</span>
+    <span class="scenario-badge" id="scenarioBadge">Graph BFS</span>
+  </div>
+</header>
+
+<!-- CONTROLS -->
+<div class="controls-bar">
+  <div class="ctrl-group">
+    <span class="ctrl-label">Cache Lines</span>
+    <input type="range" id="rCacheSize" min="16" max="64" value="16" step="8" oninput="syncRange(this,'vCacheSize')">
+    <span class="ctrl-val" id="vCacheSize">16</span>
+  </div>
+  <div class="ctrl-group">
+    <span class="ctrl-label">Stream Length</span>
+    <input type="range" id="rStream" min="100" max="600" value="400" step="50" oninput="syncRange(this,'vStream')">
+    <span class="ctrl-val" id="vStream">400</span>
+  </div>
+  <div class="ctrl-group">
+    <span class="ctrl-label">Supp. Threshold</span>
+    <input type="range" id="rThresh" min="10" max="60" value="25" step="5" oninput="syncRange(this,'vThresh','%')">
+    <span class="ctrl-val" id="vThresh">25%</span>
+  </div>
+  <div class="ctrl-group">
+    <span class="ctrl-label">Window</span>
+    <input type="range" id="rWindow" min="10" max="60" value="20" step="5" oninput="syncRange(this,'vWindow')">
+    <span class="ctrl-val" id="vWindow">20</span>
+  </div>
+  <div class="ctrl-group">
+    <span class="ctrl-label">Speed</span>
+    <div class="speed-grp">
+      <button class="spd" data-d="250" onclick="setSpd(this)">0.5×</button>
+      <button class="spd active" data-d="100" onclick="setSpd(this)">1×</button>
+      <button class="spd" data-d="40" onclick="setSpd(this)">2×</button>
+      <button class="spd" data-d="8" onclick="setSpd(this)">Max</button>
+    </div>
+  </div>
+  <div class="scenario-tabs" id="scenarioTabs">
+    <button class="stab" data-s="sequential" onclick="pickScenario(this)">📊 Sequential</button>
+    <button class="stab active" data-s="graph" onclick="pickScenario(this)">🕸 Graph BFS</button>
+    <button class="stab" data-s="sparse" onclick="pickScenario(this)">🧩 Sparse</button>
+    <button class="stab" data-s="mixed" onclick="pickScenario(this)">🔀 Mixed</button>
+  </div>
+  <button class="btn-run" onclick="runSim()">▶ Run Both</button>
+  <button class="btn-step" onclick="stepOnce()">⏭ Step</button>
+</div>
+
+<div class="main">
+
+  <!-- STREAM -->
+  <div class="stream-row">
+    <div class="stream-hdr">
+      <span class="stream-title">📡 Memory Access Stream</span>
+      <span id="phaseTag" class="phase-tag" style="display:none"></span>
+      <span style="font-size:10px;color:var(--muted)">Both simulators process the <strong style="color:var(--white)">same</strong> address sequence simultaneously</span>
+    </div>
+    <div class="stream-inner" id="streamEl"></div>
+  </div>
+
+  <!-- DUAL PANE -->
+  <div class="dual-pane">
+
+    <!-- CONVENTIONAL -->
+    <div class="pane conv-pane">
+      <div class="pane-hdr">
+        <span class="pane-title">⚠ Conventional Prefetcher</span>
+        <span class="status-pill pill-active" id="convStatusPill">ALWAYS ON</span>
+      </div>
+
+      <div class="metrics-grid">
+        <div class="met"><div class="met-val" style="color:var(--red)" id="c_miss_rate">0%</div><div class="met-lbl">Miss Rate</div></div>
+        <div class="met"><div class="met-val" style="color:var(--gold)" id="c_pf_total">0</div><div class="met-lbl">Prefetches Issued</div></div>
+        <div class="met"><div class="met-val" style="color:var(--red)" id="c_pf_wasted">0</div><div class="met-lbl">Wasted Prefetches</div></div>
+        <div class="met"><div class="met-val" style="color:var(--teal)" id="c_hits">0</div><div class="met-lbl">Cache Hits</div></div>
+        <div class="met"><div class="met-val" style="color:var(--red)" id="c_misses">0</div><div class="met-lbl">Cache Misses</div></div>
+        <div class="met"><div class="met-val" style="color:var(--muted)" id="c_useful_pct">—</div><div class="met-lbl">Prefetch Utility</div></div>
+      </div>
+
+      <div class="cache-section">
+        <div class="cache-sec-title">
+          <span>Cache State — Conventional</span>
+          <span id="c_cache_info" style="color:var(--muted)"></span>
+        </div>
+        <div class="cache-grid" id="convCacheGrid"></div>
+      </div>
+
+      <div class="cache-legend">
+        <div class="leg"><div class="legdot" style="background:var(--teal)"></div>Demand Hit</div>
+        <div class="leg"><div class="legdot" style="background:var(--green)"></div>Useful Prefetch Hit</div>
+        <div class="leg"><div class="legdot" style="background:var(--gold)"></div>Prefetched (waiting)</div>
+        <div class="leg"><div class="legdot" style="background:#334155"></div>Wasted (evicted unused)</div>
+        <div class="leg"><div class="legdot" style="background:var(--border)"></div>Empty</div>
+      </div>
+
+      <div style="padding:0 12px 12px;flex:1">
+        <div class="cache-sec-title"><span>Event Log — Conventional</span></div>
+        <div class="log-inner" id="convLog"></div>
+      </div>
+    </div>
+
+    <!-- SMART -->
+    <div class="pane smart-pane">
+      <div class="pane-hdr">
+        <span class="pane-title">✅ SmartPrefetch</span>
+        <span class="status-pill pill-active" id="smartStatusPill">ACTIVE</span>
+      </div>
+
+      <div class="metrics-grid">
+        <div class="met"><div class="met-val" style="color:var(--green)" id="s_miss_rate">0%</div><div class="met-lbl">Miss Rate</div></div>
+        <div class="met"><div class="met-val" style="color:var(--gold)" id="s_pf_total">0</div><div class="met-lbl">Prefetches Issued</div></div>
+        <div class="met"><div class="met-val" style="color:var(--green)" id="s_suppressions">0</div><div class="met-lbl">Suppressions</div></div>
+        <div class="met"><div class="met-val" style="color:var(--teal)" id="s_hits">0</div><div class="met-lbl">Cache Hits</div></div>
+        <div class="met"><div class="met-val" style="color:var(--red)" id="s_misses">0</div><div class="met-lbl">Cache Misses</div></div>
+        <div class="met"><div class="met-val" style="color:var(--cyan)" id="s_useful_pct">—</div><div class="met-lbl">Prefetch Utility</div></div>
+      </div>
+
+      <div class="cache-section">
+        <div class="cache-sec-title">
+          <span>Cache State — SmartPrefetch</span>
+          <span id="s_cache_info" style="color:var(--muted)"></span>
+        </div>
+        <div class="cache-grid" id="smartCacheGrid"></div>
+      </div>
+
+      <div class="cache-legend">
+        <div class="leg"><div class="legdot" style="background:var(--teal)"></div>Demand Hit</div>
+        <div class="leg"><div class="legdot" style="background:var(--green)"></div>Useful Prefetch Hit</div>
+        <div class="leg"><div class="legdot" style="background:var(--gold)"></div>Prefetched (waiting)</div>
+        <div class="leg"><div class="legdot" style="background:var(--border)"></div>Empty / Not Polluted</div>
+      </div>
+
+      <!-- Usefulness bar -->
+      <div class="useful-bar-wrap">
+        <span class="ubl">Usefulness</span>
+        <div class="ubtrack"><div class="ubfill" id="usefulFill" style="width:100%;background:var(--green)"></div></div>
+        <span class="ubpct" id="usefulPct" style="color:var(--green)">100%</span>
+      </div>
+
+      <div style="padding:0 12px 6px">
+        <div class="cache-sec-title"><span>Suppression Events</span><span id="windowProgEl" style="color:var(--cyan)">window: 0/25</span></div>
+        <div class="supp-events" id="suppEvents"><span style="font-size:10px;color:var(--muted)">none yet</span></div>
+      </div>
+
+      <div style="padding:0 12px 12px;flex:1">
+        <div class="cache-sec-title"><span>Event Log — SmartPrefetch</span></div>
+        <div class="log-inner" id="smartLog"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- SHARED CHART -->
+  <div class="chart-card">
+    <div class="chart-hdr">
+      <span class="chart-title">📈 Cache Miss Rate Over Time — Both Simulators</span>
+      <div class="chart-legend">
+        <div class="cl"><div class="cldot" style="background:var(--red)"></div><span style="color:var(--red)">Conventional</span></div>
+        <div class="cl"><div class="cldot" style="background:var(--green)"></div><span style="color:var(--green)">SmartPrefetch</span></div>
+        <div class="cl"><div class="cldot" style="background:rgba(239,68,68,.3);height:10px;width:2px;border-radius:0"></div><span style="color:var(--muted)">Suppression Event</span></div>
+      </div>
+    </div>
+    <canvas id="missChart" height="200"></canvas>
+  </div>
+
+  <!-- RESULT -->
+  <div class="result-banner" id="resultBanner"></div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  SIMULATION ENGINE
+// ═══════════════════════════════════════════════════════════
+
+let SIM = null, STREAM = [], step = 0, timer = null, delay = 100;
+let scenario = 'graph';
+let chartData = { conv:[], smart:[], suppPts:[] };
+
+// ═══════════════════════════════════════════════════════════
+//  SIMULATION ENGINE — matches Python simulate.py exactly
+//  CACHE_SIZE=16, WINDOW=20, THRESH=25, BAD_WIN=2, HOT=10 addrs
+// ═══════════════════════════════════════════════════════════
+
+// Hot working set — 10 addresses, matches Python HOT=[i*64 for i in range(10)]
+const HOT = Array.from({length:10}, (_,i) => i*64);
+
+// ─── Cache ───────────────────────────────────────────────
+class Cache {
+  constructor(sz) {
+    this.sz = sz;
+    this.lines = [];       // LRU order, index 0 = least recently used
+    this.addrToState = {}; // addr → 'demand'|'prefetched'|'useful'
+    this.hits = 0; this.misses = 0;
+    this.pfTotal = 0; this.pfUseful = 0;
+    this.lastEvent = null;
+  }
+  get missRate(){ const t=this.hits+this.misses; return t?(this.misses/t*100):0 }
+  get pfWasted(){ return this.pfTotal - this.pfUseful }
+  get usefulRate(){ return this.pfTotal?(this.pfUseful/this.pfTotal*100):100 }
+
+  _evict(){
+    if(this.lines.length >= this.sz){
+      const evAddr = this.lines.shift();
+      delete this.addrToState[evAddr];
+    }
+  }
+  access(addr){
+    const idx = this.lines.indexOf(addr);
+    if(idx !== -1){
+      this.lines.splice(idx,1); this.lines.push(addr);
+      this.hits++;
+      const wasPf = this.addrToState[addr]==='prefetched';
+      if(wasPf){ this.pfUseful++; this.addrToState[addr]='useful'; }
+      else { this.addrToState[addr]='demand'; }
+      this.lastEvent = wasPf?'useful_hit':'demand_hit';
+      return { hit:true, usefulPrefetch:wasPf };
+    } else {
+      this.misses++; this._evict();
+      this.lines.push(addr); this.addrToState[addr]='demand';
+      this.lastEvent = 'miss';
+      return { hit:false, usefulPrefetch:false };
+    }
+  }
+  prefetch(addr){
+    if(this.lines.indexOf(addr)===-1){
+      this._evict();
+      this.lines.push(addr);
+      this.addrToState[addr]='prefetched';
+      this.pfTotal++;
+    }
+  }
+  snapshot(){
+    const out = new Array(this.sz).fill(null);
+    for(let i=0;i<this.lines.length;i++){
+      const a = this.lines[i];
+      out[i] = { addr:a, state: this.addrToState[a]||'demand' };
+    }
+    return out;
+  }
+}
+
+// ─── Conventional Prefetcher ─────────────────────────────
+// Always-on, fires 4 prefetches every access, never stops.
+// On irregular workloads the stride is huge/random → prefetches
+// cold addresses → evicts hot-set lines → demand misses increase.
+class ConvPF {
+  constructor(sz){ this.cache=new Cache(sz); this.last=null; this.lastStride=64; }
+  step(addr){
+    const res = this.cache.access(addr);
+    if(this.last!==null){
+      const s = addr - this.last;
+      if(s !== 0) this.lastStride = Math.min(Math.abs(s), 8192);
+    }
+    const st = this.lastStride || 64;
+    for(let d=1;d<=4;d++) this.cache.prefetch(addr + st*d);
+    this.last=addr; return res;
+  }
+}
+
+// ─── SmartPrefetcher ─────────────────────────────────────
+// Suppresses ONLY when BOTH: usefulness < threshold AND stride is irregular.
+// Parameters match Python: THRESH=25, WINDOW=20, BAD_WIN=2, STRIDE_HIST=5
+class SmartPF {
+  constructor(sz, thresh, win){
+    this.cache = new Cache(sz);
+    this.thresh = thresh; this.win = win;
+    this.last = null; this.lastStride = 0;
+    this.suppressed = false; this.badWindows = 0;
+    this.winAcc = 0; this.winPfIssued = 0; this.winPfUsed = 0;
+    this.suppressCount = 0; this.suppressEvents = [];
+    this.curUseful = 100;
+    this.strideHist = []; this.isRegular = true;
+  }
+
+  _strideIsRegular(stride){
+    this.strideHist.push(Math.abs(stride));
+    if(this.strideHist.length > 5) this.strideHist.shift();
+    if(this.strideHist.length < 3) return true;
+    const vals = this.strideHist.filter(v=>v>0);
+    if(!vals.length) return false;
+    const mn = Math.min(...vals), mx = Math.max(...vals);
+    return mx <= mn * 3;
+  }
+
+  step(addr){
+    const wasPf = this.cache.addrToState[addr] === 'prefetched';
+    const res = this.cache.access(addr);
+    this.winAcc++;
+    if(wasPf) this.winPfUsed++;
+
+    if(this.last !== null){
+      const stride = addr - this.last;
+      if(stride !== 0){
+        this.isRegular = this._strideIsRegular(stride);
+        this.lastStride = stride;
+      }
+    }
+
+    if(this.winAcc >= this.win){
+      const rate = this.winPfIssued > 0
+        ? (this.winPfUsed / this.winPfIssued * 100) : 100;
+      this.curUseful = rate;
+      const shouldSuppress = (rate < this.thresh) && !this.isRegular;
+      if(shouldSuppress){
+        this.badWindows++;
+        if(this.badWindows >= 2 && !this.suppressed){
+          this.suppressed = true;
+          this.suppressCount++;
+          this.suppressEvents.push(this.cache.hits + this.cache.misses);
+        }
+      } else {
+        this.badWindows = 0;
+        this.suppressed = false;
+      }
+      this.winAcc = 0; this.winPfIssued = 0; this.winPfUsed = 0;
+    }
+
+    if(!this.suppressed && this.lastStride !== 0){
+      const st = Math.min(Math.abs(this.lastStride), 8192) || 64;
+      for(let d=1;d<=4;d++){ this.cache.prefetch(addr + st*d); this.winPfIssued++; }
+    }
+
+    this.last = addr;
+    return { ...res, suppressed: this.suppressed };
+  }
+}
+
+// ─── Workloads — exact JS port of Python simulate.py ─────
+// Sequential: stride-64, both prefetchers equal (no suppression)
+function genSequential(n){ return Array.from({length:n},(_,i)=>i*64); }
+
+// Graph BFS: random walk over HOT set in shuffled order.
+// Strides jump wildly between hot addresses → conventional fires
+// 4 prefetches at those random strides = always cold addresses.
+// Matches Python gen_graph_bfs using LCG seed=42.
+function genGraph(n){
+  // LCG matching Python random.Random(42) shuffle behaviour
+  let seed = 42;
+  const rng = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 0x100000000; };
+  // Fisher-Yates shuffle matching Python random.shuffle
+  const shuffle = arr => {
+    for(let i=arr.length-1;i>0;i--){
+      const j = Math.floor(rng()*(i+1));
+      [arr[i],arr[j]]=[arr[j],arr[i]];
+    }
+  };
+  const perm = Array.from({length:HOT.length},(_,i)=>i);
+  const stream = [];
+  while(stream.length < n){
+    shuffle(perm);
+    for(const p of perm){
+      stream.push(HOT[p]);
+      if(stream.length >= n) break;
+    }
+  }
+  return stream.slice(0,n);
+}
+
+// Sparse Matrix: alternates sequential row pointer + random column.
+// Matches Python gen_sparse using LCG seed=77.
+function genSparse(n){
+  let seed = 77;
+  const rng = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 0x100000000; };
+  const stream = [];
+  for(let i=0;i<n;i++){
+    if(i%3===0){
+      stream.push(Math.floor(i/3) % HOT.length * 64);
+    } else {
+      stream.push(HOT[Math.floor(rng()*HOT.length)]);
+    }
+  }
+  return stream;
+}
+
+// Mixed: sequential → graph BFS → sequential → sparse (4 equal phases)
+function genMixed(n){
+  const seg = Math.floor(n/4);
+  return [
+    ...genSequential(seg),
+    ...genGraph(seg),
+    ...genSequential(seg),
+    ...genSparse(n - 3*seg),
+  ];
+}
+
+const WKLDS={ sequential:genSequential, graph:genGraph, sparse:genSparse, mixed:genMixed };
+const WKLABELS={ sequential:'Sequential Array', graph:'Graph BFS', sparse:'Sparse Matrix', mixed:'Mixed Workload' };
+
+// ─── Cache Grid Renderer ─────────────────────────────────
+function renderCacheGrid(elId, snap, cacheSize){
+  const el=document.getElementById(elId);
+  const cols=Math.min(cacheSize,32);
+  el.style.gridTemplateColumns=`repeat(${cols},1fr)`;
+  let html='';
+  for(let i=0;i<cacheSize;i++){
+    const cell=snap[i];
+    let cls='cc ';
+    let title='empty';
+    if(!cell){ cls+='c-empty'; }
+    else {
+      title=`addr:${cell.addr} [${cell.state}]`;
+      if(cell.state==='demand') cls+='c-demand';
+      else if(cell.state==='prefetched') cls+='c-prefetched';
+      else if(cell.state==='useful') cls+='c-useful';
+      else if(cell.state==='wasted') cls+='c-wasted';
+      else cls+='c-demand';
+    }
+    html+=`<div class="${cls}" title="${title}"></div>`;
+  }
+  el.innerHTML=html;
+}
+
+// ─── Stream Renderer ─────────────────────────────────────
+function renderStream(stream, cur){
+  const el=document.getElementById('streamEl');
+  const start=Math.max(0,cur-10), end=Math.min(stream.length,cur+14);
+  let html='';
+  for(let i=start;i<end;i++){
+    const a=stream[i];
+    let cls='saddr ';
+    if(i<cur) cls+=(SIM&&i<SIM.conv.cache.hits+SIM.conv.cache.misses)?'past-hit':'past-miss';
+    else if(i===cur) cls+='current';
+    else cls+='future';
+    html+=`<div class="${cls}">${a}</div>`;
+  }
+  el.innerHTML=html;
+  // show phase for mixed
+  if(scenario==='mixed'){
+    const seg=Math.floor(STREAM.length/4);
+    const phase=cur<seg?'Phase: Sequential':cur<seg*2?'Phase: Graph BFS':cur<seg*3?'Phase: Sequential (again)':'Phase: Sparse';
+    const pt=document.getElementById('phaseTag');
+    pt.textContent=phase; pt.style.display='inline-block';
+  } else { document.getElementById('phaseTag').style.display='none'; }
+}
+
+// ─── Log ─────────────────────────────────────────────────
+function addLog(elId, msg, tag, t){
+  const el=document.getElementById(elId);
+  const d=document.createElement('div'); d.className='ll';
+  d.innerHTML=`<span class="lt">${t}</span><span class="ltag tag-${tag}">${tag.toUpperCase()}</span><span class="lmsg">${msg}</span>`;
+  el.appendChild(d); el.scrollTop=el.scrollHeight;
+}
+
+// ─── Chart ───────────────────────────────────────────────
+let chartCanvas, chartCtx2d;
+function initChart(){
+  chartCanvas=document.getElementById('missChart');
+  chartCtx2d=chartCanvas.getContext('2d');
+  drawChart();
+}
+function drawChart(){
+  if(!chartCtx2d) return;
+  const W=chartCanvas.offsetWidth||900, H=200;
+  chartCanvas.width=W; chartCanvas.height=H;
+  const cx=chartCtx2d;
+  cx.clearRect(0,0,W,H);
+  const pad={l:42,r:16,t:14,b:30};
+  const w=W-pad.l-pad.r, h=H-pad.t-pad.b;
+
+  // bg gradient
+  const bg=cx.createLinearGradient(0,pad.t,0,pad.t+h);
+  bg.addColorStop(0,'rgba(10,22,40,0)'); bg.addColorStop(1,'rgba(10,22,40,0.6)');
+  cx.fillStyle=bg; cx.fillRect(pad.l,pad.t,w,h);
+
+  // grid lines
+  for(let i=0;i<=5;i++){
+    const y=pad.t+(h/5)*i;
+    cx.strokeStyle='rgba(24,46,74,0.8)'; cx.lineWidth=1;
+    cx.beginPath(); cx.moveTo(pad.l,y); cx.lineTo(pad.l+w,y); cx.stroke();
+    cx.fillStyle='#5a7a9a'; cx.font='9px JetBrains Mono';
+    cx.textAlign='right'; cx.fillText((100-i*20)+'%',pad.l-5,y+3);
+  }
+
+  const pts=chartData.conv.length;
+  if(pts<2) return;
+
+  // suppression event vertical lines
+  chartData.suppPts.forEach(sp=>{
+    const x=pad.l+(sp/pts)*w;
+    cx.strokeStyle='rgba(239,68,68,0.25)'; cx.lineWidth=1.5;
+    cx.setLineDash([4,4]);
+    cx.beginPath(); cx.moveTo(x,pad.t); cx.lineTo(x,pad.t+h); cx.stroke();
+    cx.setLineDash([]);
+  });
+
+  // area fill conv
+  cx.beginPath();
+  chartData.conv.forEach((v,i)=>{
+    const x=pad.l+(i/(pts-1))*w, y=pad.t+h-(v/100)*h;
+    i===0?cx.moveTo(x,y):cx.lineTo(x,y);
+  });
+  cx.lineTo(pad.l+(pts-1)/(pts-1)*w,pad.t+h); cx.lineTo(pad.l,pad.t+h); cx.closePath();
+  cx.fillStyle='rgba(239,68,68,0.06)'; cx.fill();
+
+  // area fill smart
+  cx.beginPath();
+  chartData.smart.forEach((v,i)=>{
+    const x=pad.l+(i/(pts-1))*w, y=pad.t+h-(v/100)*h;
+    i===0?cx.moveTo(x,y):cx.lineTo(x,y);
+  });
+  cx.lineTo(pad.l+(pts-1)/(pts-1)*w,pad.t+h); cx.lineTo(pad.l,pad.t+h); cx.closePath();
+  cx.fillStyle='rgba(34,197,94,0.06)'; cx.fill();
+
+  // draw lines
+  const drawLine=(data,color,lw=2)=>{
+    cx.beginPath();
+    data.forEach((v,i)=>{
+      const x=pad.l+(i/(pts-1))*w, y=pad.t+h-(v/100)*h;
+      i===0?cx.moveTo(x,y):cx.lineTo(x,y);
+    });
+    cx.strokeStyle=color; cx.lineWidth=lw; cx.stroke();
+  };
+  drawLine(chartData.conv,'#ef4444',2.5);
+  drawLine(chartData.smart,'#22c55e',2.5);
+
+  // current marker (dots at end)
+  const lastDot=(data,color)=>{
+    const i=pts-1;
+    const x=pad.l+(i/(pts-1))*w, y=pad.t+h-(data[i]/100)*h;
+    cx.beginPath(); cx.arc(x,y,4,0,Math.PI*2);
+    cx.fillStyle=color; cx.fill();
+  };
+  lastDot(chartData.conv,'#ef4444');
+  lastDot(chartData.smart,'#22c55e');
+
+  // x-axis label
+  cx.fillStyle='#5a7a9a'; cx.font='9px JetBrains Mono'; cx.textAlign='center';
+  cx.fillText(`Access 0`,pad.l,H-6);
+  cx.fillText(`Access ${STREAM.length}`,pad.l+w,H-6);
+  if(pts>0) cx.fillText(`Access ${step}`,pad.l+(step/STREAM.length||0)*w,H-6);
+}
+
+// ─── Suppression pill ────────────────────────────────────
+function addSuppPill(accessNum){
+  const el=document.getElementById('suppEvents');
+  if(el.querySelector('span[style]')) el.innerHTML='';
+  const p=document.createElement('span'); p.className='supp-pill';
+  p.textContent=`#${SIM.smart.suppressCount} @ acc.${accessNum}`;
+  el.appendChild(p);
+}
+
+// ─── Update UI ────────────────────────────────────────────
+let prevSuppressed=false;
+function updateUI(i){
+  const {conv,smart,cacheSize}=SIM;
+  const total=conv.cache.hits+conv.cache.misses;
+
+  // ticker
+  document.getElementById('tickerEl').textContent=`Access: ${total} / ${STREAM.length}`;
+
+  // conv metrics
+  document.getElementById('c_miss_rate').textContent=conv.cache.missRate.toFixed(1)+'%';
+  document.getElementById('c_pf_total').textContent=conv.cache.pfTotal;
+  document.getElementById('c_pf_wasted').textContent=conv.cache.pfWasted;
+  document.getElementById('c_hits').textContent=conv.cache.hits;
+  document.getElementById('c_misses').textContent=conv.cache.misses;
+  const cUR=conv.cache.pfTotal?conv.cache.usefulRate:100;
+  document.getElementById('c_useful_pct').textContent=cUR.toFixed(0)+'%';
+  document.getElementById('c_cache_info').textContent=`${conv.cache.lines.length}/${cacheSize} lines used`;
+
+  // smart metrics
+  document.getElementById('s_miss_rate').textContent=smart.cache.missRate.toFixed(1)+'%';
+  document.getElementById('s_pf_total').textContent=smart.cache.pfTotal;
+  document.getElementById('s_suppressions').textContent=smart.suppressCount;
+  document.getElementById('s_hits').textContent=smart.cache.hits;
+  document.getElementById('s_misses').textContent=smart.cache.misses;
+  const sUR=smart.cache.pfTotal?smart.cache.usefulRate:100;
+  document.getElementById('s_useful_pct').textContent=sUR.toFixed(0)+'%';
+  document.getElementById('s_cache_info').textContent=`${smart.cache.lines.length}/${cacheSize} lines used`;
+
+  // usefulness bar
+  const ur=smart.curUseful;
+  document.getElementById('usefulFill').style.width=ur+'%';
+  document.getElementById('usefulFill').style.background=ur>=50?'var(--green)':ur>=smart.thresh?'var(--gold)':'var(--red)';
+  document.getElementById('usefulPct').textContent=ur.toFixed(0)+'%';
+  document.getElementById('usefulPct').style.color=ur>=50?'var(--green)':ur>=smart.thresh?'var(--gold)':'var(--red)';
+
+  // status pills
+  const sp=document.getElementById('smartStatusPill');
+  if(smart.suppressed){
+    sp.className='status-pill pill-suppressed'; sp.textContent='⛔ SUPPRESSED';
+  } else if(!smart.isRegular && smart.badWindows > 0){
+    sp.className='status-pill pill-active'; sp.textContent='⚠ WATCHING';
+    sp.style.background='rgba(255,183,3,0.2)'; sp.style.borderColor='rgba(255,183,3,0.4)'; sp.style.color='var(--gold)';
+  } else {
+    sp.className='status-pill pill-active'; sp.textContent='✅ ACTIVE';
+    sp.style.background=''; sp.style.borderColor=''; sp.style.color='';
+  }
+
+  // window progress — show regularity signal too
+  const regLabel = smart.isRegular ? '🔁 regular' : '🔀 irregular';
+  document.getElementById('windowProgEl').textContent=`window: ${smart.winAcc}/${smart.win} · ${regLabel}`;
+
+  // suppression toggle logs
+  if(smart.suppressed && !prevSuppressed){
+    addLog('smartLog',`SUPPRESSED — utility ${ur.toFixed(0)}% < ${smart.thresh}% AND irregular stride pattern detected`,'supp',i);
+    addSuppPill(total);
+    chartData.suppPts.push(chartData.smart.length);
+    prevSuppressed=true;
+  } else if(!smart.suppressed && prevSuppressed){
+    addLog('smartLog',`RE-ENABLED — stride regularity restored or usefulness recovered`,'resume',i);
+    prevSuppressed=false;
+  }
+
+  // cache grids
+  renderCacheGrid('convCacheGrid', conv.cache.snapshot(), cacheSize);
+  renderCacheGrid('smartCacheGrid', smart.cache.snapshot(), cacheSize);
+
+  // chart sample
+  if(i%Math.max(1,Math.floor(STREAM.length/120))===0){
+    chartData.conv.push(conv.cache.missRate);
+    chartData.smart.push(smart.cache.missRate);
+    drawChart();
+  }
+}
+
+// ─── Process one step ────────────────────────────────────
+function tick(i){
+  const addr=STREAM[i];
+  const cRes=SIM.conv.step(addr);
+  const sRes=SIM.smart.step(addr);
+
+  renderStream(STREAM,i);
+
+  // conv log (sample to avoid flood)
+  if(i%5===0){
+    if(!cRes.hit) addLog('convLog',`addr:${addr} → MISS, prefetched next stride`,'miss',i);
+    else addLog('convLog',`addr:${addr} → ${cRes.usefulPrefetch?'USEFUL PREFETCH HIT':'HIT'}`,'hit',i);
+  }
+
+  updateUI(i);
+  step=i+1;
+}
+
+// ─── Run / Step ──────────────────────────────────────────
+function buildSim(){
+  const cacheSize=+document.getElementById('rCacheSize').value;
+  const thresh=+document.getElementById('rThresh').value;
+  const win=+document.getElementById('rWindow').value;
+  const len=+document.getElementById('rStream').value;
+  STREAM=WKLDS[scenario](len);
+  SIM={ conv:new ConvPF(cacheSize), smart:new SmartPF(cacheSize,thresh,win), cacheSize };
+  prevSuppressed=false;
+}
+
+function resetUI(){
+  ['convLog','smartLog'].forEach(id=>{ document.getElementById(id).innerHTML=''; });
+  document.getElementById('suppEvents').innerHTML='<span style="font-size:10px;color:var(--muted)">none yet</span>';
+  document.getElementById('resultBanner').style.display='none';
+  chartData={conv:[],smart:[],suppPts:[]};
+  step=0;
+  renderStream([],0);
+  renderCacheGrid('convCacheGrid',[],+document.getElementById('rCacheSize').value);
+  renderCacheGrid('smartCacheGrid',[],+document.getElementById('rCacheSize').value);
+  drawChart();
+}
+
+function runSim(){
+  if(timer){ clearInterval(timer); timer=null; }
+  buildSim(); resetUI();
+  document.getElementById('scenarioBadge').textContent=WKLABELS[scenario];
+  addLog('convLog',`Started: ${WKLABELS[scenario]}, ${STREAM.length} accesses, cache=${SIM.cacheSize}`,'info',0);
+  addLog('smartLog',`Started: threshold=${SIM.smart.thresh}%, window=${SIM.smart.win}, cache=${SIM.cacheSize}`,'info',0);
+
+  if(delay<=8){
+    for(let i=0;i<STREAM.length;i++) tick(i);
+    showResult();
+    return;
+  }
+  timer=setInterval(()=>{
+    if(step>=STREAM.length){ clearInterval(timer); timer=null; showResult(); return; }
+    tick(step);
+  },delay);
+}
+
+function stepOnce(){
+  if(!SIM){ buildSim(); resetUI(); document.getElementById('scenarioBadge').textContent=WKLABELS[scenario]; }
+  if(step<STREAM.length){ tick(step); if(step>=STREAM.length) showResult(); }
+}
+
+function showResult(){
+  const c=SIM.conv.cache.missRate.toFixed(1);
+  const s=SIM.smart.cache.missRate.toFixed(1);
+  const diff=(c-s).toFixed(1);
+  const bw=Math.max(0,SIM.conv.cache.pfTotal-SIM.smart.cache.pfTotal);
+  const el=document.getElementById('resultBanner');
+  if(parseFloat(diff)>0.5){
+    el.className='result-banner win';
+    el.innerHTML=`✅ SmartPrefetch reduced miss rate by <strong>${diff} percentage points</strong> &nbsp;·&nbsp; Eliminated <strong>${bw}</strong> wasteful prefetch requests &nbsp;·&nbsp; Conv: ${c}% vs Smart: ${s}%`;
+  } else {
+    el.className='result-banner neutral';
+    el.innerHTML=`ℹ Simulation complete — Conv: ${c}% &nbsp;·&nbsp; Smart: ${s}% &nbsp;·&nbsp; SmartPrefetch correctly stayed active on regular workload`;
+  }
+  el.style.display='block';
+  // Final chart
+  chartData.conv.push(SIM.conv.cache.missRate);
+  chartData.smart.push(SIM.smart.cache.missRate);
+  drawChart();
+}
+
+// ─── UI controls ─────────────────────────────────────────
+function syncRange(el, valId, suffix=''){
+  document.getElementById(valId).textContent=el.value+suffix;
+}
+function setSpd(btn){
+  document.querySelectorAll('.spd').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); delay=+btn.dataset.d;
+}
+function pickScenario(btn){
+  document.querySelectorAll('.stab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); scenario=btn.dataset.s;
+  if(timer){ clearInterval(timer); timer=null; }
+  SIM=null;
+}
+
+window.addEventListener('load',()=>{
+  initChart();
+  renderCacheGrid('convCacheGrid',[],16);
+  renderCacheGrid('smartCacheGrid',[],16);
+  renderStream([],0);
+});
+window.addEventListener('resize',drawChart);
+</script>
+</body>
+</html>
